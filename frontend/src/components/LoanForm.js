@@ -55,11 +55,7 @@ const LoanForm = () => {
       [e.target.name]: e.target.value
     });
     setError('');
-    // Clear prediction result when user changes any field
-    if (hasSubmitted) {
-      setPredictionResult(null);
-      setHasSubmitted(false);
-    }
+    // Don't clear prediction result automatically - let user explicitly start new application
   };
 
   const handleNext = () => {
@@ -104,6 +100,26 @@ const LoanForm = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      gender: '',
+      married: '',
+      dependents: '',
+      education: '',
+      selfEmployed: '',
+      applicantIncome: '',
+      coapplicantIncome: '',
+      loanAmount: '',
+      loanAmountTerm: '',
+      creditHistory: '',
+      propertyArea: ''
+    });
+    setPredictionResult(null);
+    setHasSubmitted(false);
+    setError('');
+    setActiveStep(0);
   };
 
   const getStepContent = (step) => {
@@ -312,7 +328,22 @@ const LoanForm = () => {
             color={isApproved ? 'success' : 'error'}
             variant="outlined"
             size="large"
+            sx={{ mb: 2 }}
           />
+          <Box sx={{ mt: 3 }}>
+            <Button
+              variant="contained"
+              onClick={resetForm}
+              size="large"
+              sx={{
+                background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                minWidth: 200,
+                height: 48
+              }}
+            >
+              Start New Application
+            </Button>
+          </Box>
         </CardContent>
       </Card>
     );
@@ -402,7 +433,7 @@ const LoanForm = () => {
 
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
               <Button
-                disabled={activeStep === 0}
+                disabled={activeStep === 0 || hasSubmitted}
                 onClick={handleBack}
                 variant="outlined"
                 size="large"
@@ -416,7 +447,7 @@ const LoanForm = () => {
                     type="submit"
                     variant="contained"
                     size="large"
-                    disabled={loading || !isFormComplete()}
+                    disabled={loading || !isFormComplete() || hasSubmitted}
                     sx={{
                       background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
                       minWidth: 150,
@@ -434,7 +465,7 @@ const LoanForm = () => {
                     variant="contained"
                     onClick={handleNext}
                     size="large"
-                    disabled={!isStepComplete(activeStep)}
+                    disabled={!isStepComplete(activeStep) || hasSubmitted}
                     sx={{
                       background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
                       minWidth: 150,

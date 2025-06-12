@@ -25,60 +25,68 @@ def predict():
         return jsonify({'error': 'Model not loaded'}), 500
     
     try:
-        data = request.json
+        data = request.get_json()
         print(f"Received data: {data}")
         
-        # Create a DataFrame with the input data
+        # Create DataFrame with the received data
         input_data = pd.DataFrame([{
-            'Gender': data.get('gender', 'Male'),
-            'Married': data.get('married', 'No'),
-            'Dependents': data.get('dependents', '0'),
-            'Education': data.get('education', 'Graduate'),
-            'Self_Employed': data.get('selfEmployed', 'No'),
-            'ApplicantIncome': data.get('applicantIncome', 0),
-            'CoapplicantIncome': data.get('coapplicantIncome', 0),
-            'LoanAmount': data.get('loanAmount', 0),
-            'Loan_Amount_Term': data.get('loanAmountTerm', 360),
-            'Credit_History': data.get('creditHistory', 1),
-            'Property_Area': data.get('propertyArea', 'Urban')
+            'Gender': data['gender'],
+            'Married': data['married'],
+            'Dependents': data['dependents'],
+            'Education': data['education'],
+            'Self_Employed': data['selfEmployed'],
+            'ApplicantIncome': data['applicantIncome'],
+            'CoapplicantIncome': data['coapplicantIncome'],
+            'LoanAmount': data['loanAmount'],
+            'Loan_Amount_Term': data['loanAmountTerm'],
+            'Credit_History': data['creditHistory'],
+            'Property_Area': data['propertyArea']
         }])
         
         print(f"Input DataFrame before encoding: {input_data}")
         
-        # Preprocess the data using separate encoders for each categorical column
-        input_data['Gender'] = label_encoders['Gender'].transform(input_data['Gender'].fillna('Male'))
-        input_data['Married'] = label_encoders['Married'].transform(input_data['Married'].fillna('No'))
-        input_data['Dependents'] = label_encoders['Dependents'].transform(input_data['Dependents'].fillna('0'))
-        input_data['Education'] = label_encoders['Education'].transform(input_data['Education'])
-        input_data['Self_Employed'] = label_encoders['Self_Employed'].transform(input_data['Self_Employed'].fillna('No'))
-        input_data['Property_Area'] = label_encoders['Property_Area'].transform(input_data['Property_Area'])
-        input_data['Loan_Amount_Term'] = input_data['Loan_Amount_Term'].fillna(360)
-        input_data['Credit_History'] = input_data['Credit_History'].fillna(1)
+        # Encode categorical variables
+        for column in ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area']:
+            input_data[column] = label_encoders[column].transform(input_data[column].astype(str))
         
-        # Add engineered features
+        # Add engineered features (exactly as in training)
         input_data['Total_Income'] = input_data['ApplicantIncome'] + input_data['CoapplicantIncome']
-        input_data['Income_to_Loan_Ratio'] = input_data['Total_Income'] / input_data['LoanAmount']
+        input_data['Income_to_Loan_Ratio'] = input_data['Total_Income'] / (input_data['LoanAmount'] + 1e-6)
         input_data['Has_Coapplicant'] = (input_data['CoapplicantIncome'] > 0).astype(int)
-        input_data['High_Income'] = (input_data['Total_Income'] > 10000).astype(int)
-        input_data['Low_Income'] = (input_data['Total_Income'] < 3000).astype(int)
+        input_data['High_Income'] = (input_data['Total_Income'] > 15000).astype(int)
+        input_data['Low_Income'] = (input_data['Total_Income'] < 5000).astype(int)
+        input_data['Very_Low_Income'] = (input_data['Total_Income'] < 3000).astype(int)
+        input_data['High_Loan_Ratio'] = (input_data['Income_to_Loan_Ratio'] > 10).astype(int)
+        input_data['Low_Loan_Ratio'] = (input_data['Income_to_Loan_Ratio'] < 3).astype(int)
+        
+        # Select features in the same order as training
+        features = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed',
+                   'ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term',
+                   'Credit_History', 'Property_Area', 'Total_Income', 'Income_to_Loan_Ratio',
+                   'Has_Coapplicant', 'High_Income', 'Low_Income', 'Very_Low_Income', 
+                   'High_Loan_Ratio', 'Low_Loan_Ratio']
+        
+        input_data = input_data[features]
         
         print(f"Input DataFrame after encoding and feature engineering: {input_data}")
         print(f"Input data types: {input_data.dtypes}")
+        print(f"Number of features: {len(input_data.columns)}")
         
-        # Make prediction
+        # Make prediction (Random Forest doesn't need scaling)
         prediction = model.predict(input_data)[0]
         prediction_proba = model.predict_proba(input_data)[0]
         
         print(f"Model prediction: {prediction}")
         print(f"Model prediction probabilities: {prediction_proba}")
         
-        result = bool(prediction == 'Y')
+        # Convert prediction to boolean (assuming 0=N, 1=Y)
+        result = bool(prediction == 1)
         print(f"Final result: {result}")
         
         return jsonify({'result': result})
-    
+        
     except Exception as e:
-        print(f"Error in prediction: {str(e)}")
+        print(f"Error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
