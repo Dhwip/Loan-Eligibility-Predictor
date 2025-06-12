@@ -47,6 +47,7 @@ const LoanForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeStep, setActiveStep] = useState(0);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -54,6 +55,11 @@ const LoanForm = () => {
       [e.target.name]: e.target.value
     });
     setError('');
+    // Clear prediction result when user changes any field
+    if (hasSubmitted) {
+      setPredictionResult(null);
+      setHasSubmitted(false);
+    }
   };
 
   const handleNext = () => {
@@ -66,9 +72,23 @@ const LoanForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate that all required fields are filled
+    const requiredFields = ['gender', 'married', 'dependents', 'education', 'selfEmployed', 
+                          'applicantIncome', 'coapplicantIncome', 'loanAmount', 'loanAmountTerm', 
+                          'creditHistory', 'propertyArea'];
+    
+    const missingFields = requiredFields.filter(field => !formData[field]);
+    
+    if (missingFields.length > 0) {
+      setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+    
     setLoading(true);
     setError('');
     setPredictionResult(null);
+    setHasSubmitted(false);
 
     try {
       console.log('Sending data to backend:', formData);
@@ -77,6 +97,7 @@ const LoanForm = () => {
       
       // Spring Boot returns a boolean directly
       setPredictionResult(response.data);
+      setHasSubmitted(true);
     } catch (error) {
       console.error('Error:', error);
       setError('Failed to get prediction. Please try again.');
@@ -252,9 +273,16 @@ const LoanForm = () => {
   };
 
   const renderPredictionResult = () => {
-    if (predictionResult === null) return null;
+    // Only show prediction result if user has actually submitted the form
+    console.log('renderPredictionResult called:', { hasSubmitted, predictionResult });
+    
+    if (!hasSubmitted || predictionResult === null) {
+      console.log('Not showing prediction result - hasSubmitted:', hasSubmitted, 'predictionResult:', predictionResult);
+      return null;
+    }
 
     const isApproved = predictionResult === true;
+    console.log('Showing prediction result - isApproved:', isApproved);
     
     return (
       <Card sx={{ mt: 3, border: '2px solid', borderColor: isApproved ? 'success.main' : 'error.main' }}>
@@ -288,6 +316,28 @@ const LoanForm = () => {
         </CardContent>
       </Card>
     );
+  };
+
+  const isStepComplete = (step) => {
+    switch (step) {
+      case 0:
+        return formData.gender && formData.married && formData.dependents && 
+               formData.education && formData.selfEmployed;
+      case 1:
+        return formData.applicantIncome && formData.coapplicantIncome && 
+               formData.creditHistory !== '';
+      case 2:
+        return formData.loanAmount && formData.loanAmountTerm && formData.propertyArea;
+      default:
+        return false;
+    }
+  };
+
+  const isFormComplete = () => {
+    const requiredFields = ['gender', 'married', 'dependents', 'education', 'selfEmployed', 
+                          'applicantIncome', 'coapplicantIncome', 'loanAmount', 'loanAmountTerm', 
+                          'creditHistory', 'propertyArea'];
+    return requiredFields.every(field => formData[field]);
   };
 
   return (
@@ -366,7 +416,7 @@ const LoanForm = () => {
                     type="submit"
                     variant="contained"
                     size="large"
-                    disabled={loading}
+                    disabled={loading || !isFormComplete()}
                     sx={{
                       background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
                       minWidth: 150,
@@ -384,6 +434,7 @@ const LoanForm = () => {
                     variant="contained"
                     onClick={handleNext}
                     size="large"
+                    disabled={!isStepComplete(activeStep)}
                     sx={{
                       background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
                       minWidth: 150,

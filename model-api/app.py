@@ -26,6 +26,7 @@ def predict():
     
     try:
         data = request.json
+        print(f"Received data: {data}")
         
         # Create a DataFrame with the input data
         input_data = pd.DataFrame([{
@@ -42,6 +43,8 @@ def predict():
             'Property_Area': data.get('propertyArea', 'Urban')
         }])
         
+        print(f"Input DataFrame before encoding: {input_data}")
+        
         # Preprocess the data using separate encoders for each categorical column
         input_data['Gender'] = label_encoders['Gender'].transform(input_data['Gender'].fillna('Male'))
         input_data['Married'] = label_encoders['Married'].transform(input_data['Married'].fillna('No'))
@@ -52,12 +55,30 @@ def predict():
         input_data['Loan_Amount_Term'] = input_data['Loan_Amount_Term'].fillna(360)
         input_data['Credit_History'] = input_data['Credit_History'].fillna(1)
         
+        # Add engineered features
+        input_data['Total_Income'] = input_data['ApplicantIncome'] + input_data['CoapplicantIncome']
+        input_data['Income_to_Loan_Ratio'] = input_data['Total_Income'] / input_data['LoanAmount']
+        input_data['Has_Coapplicant'] = (input_data['CoapplicantIncome'] > 0).astype(int)
+        input_data['High_Income'] = (input_data['Total_Income'] > 10000).astype(int)
+        input_data['Low_Income'] = (input_data['Total_Income'] < 3000).astype(int)
+        
+        print(f"Input DataFrame after encoding and feature engineering: {input_data}")
+        print(f"Input data types: {input_data.dtypes}")
+        
         # Make prediction
         prediction = model.predict(input_data)[0]
+        prediction_proba = model.predict_proba(input_data)[0]
         
-        return jsonify({'result': bool(prediction == 'Y')})
+        print(f"Model prediction: {prediction}")
+        print(f"Model prediction probabilities: {prediction_proba}")
+        
+        result = bool(prediction == 'Y')
+        print(f"Final result: {result}")
+        
+        return jsonify({'result': result})
     
     except Exception as e:
+        print(f"Error in prediction: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
