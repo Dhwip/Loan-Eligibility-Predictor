@@ -33,8 +33,8 @@ public class LoanPredictionController {
             );
             
             if (response.getBody() != null) {
-                System.out.println("Model prediction: " + response.getBody().isPrediction());
-                return ResponseEntity.ok(response.getBody().isPrediction());
+                System.out.println("Model prediction: " + response.getBody().isResult());
+                return ResponseEntity.ok(response.getBody().isResult());
             } else {
                 System.out.println("No response from model API");
                 return ResponseEntity.ok(false);
@@ -48,14 +48,14 @@ public class LoanPredictionController {
 
     // Inner class to deserialize the response from Python API
     public static class PredictionResponse {
-        private boolean prediction;
+        private boolean result;
         
-        public boolean isPrediction() {
-            return prediction;
+        public boolean isResult() {
+            return result;
         }
         
-        public void setPrediction(boolean prediction) {
-            this.prediction = prediction;
+        public void setResult(boolean result) {
+            this.result = result;
         }
     }
 } 

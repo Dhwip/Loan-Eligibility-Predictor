@@ -22,10 +22,24 @@ def create_loan_status(row):
     # Income to loan ratio should be reasonable
     if total_income > 0:
         income_to_loan_ratio = total_income / loan_amount
-        if income_to_loan_ratio > 5 and row['Credit_History'] == 1:
-            return 'Y'
-        elif income_to_loan_ratio > 10:
-            return 'Y'
+        
+        # More comprehensive eligibility criteria
+        # 1. High income to loan ratio (good)
+        # 2. Good credit history
+        # 3. Reasonable loan term
+        # 4. Graduate education (bonus)
+        
+        credit_good = row['Credit_History'] == 1
+        education_good = row['Education'] == 'Graduate'
+        loan_term_reasonable = row['Loan_Amount_Term'] <= 360  # 30 years max
+        
+        # Approval criteria
+        if income_to_loan_ratio >= 3 and credit_good:
+            return 'Y'  # Good income ratio and credit
+        elif income_to_loan_ratio >= 5:
+            return 'Y'  # Very good income ratio
+        elif income_to_loan_ratio >= 2 and credit_good and education_good:
+            return 'Y'  # Moderate ratio but good credit and education
         else:
             return 'N'
     else:
@@ -74,7 +88,7 @@ print(Y.isnull().sum())
 X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
 # Train the model
-model = LogisticRegression(random_state=42)
+model = LogisticRegression(random_state=42, max_iter=1000)
 model.fit(X_train, y_train)
 
 # Save the model
@@ -90,3 +104,17 @@ print(f"Training accuracy: {model.score(X_train, y_train):.3f}")
 print(f"Test accuracy: {model.score(X_test, y_test):.3f}")
 print(f"Target distribution: {Y.value_counts().to_dict()}")
 print("Label encoders created for:", list(label_encoders.keys()))
+
+# Test the logic with sample data
+print("\nTesting loan eligibility logic:")
+test_cases = [
+    {'ApplicantIncome': 12341234, 'CoapplicantIncome': 0, 'LoanAmount': 12345, 'Credit_History': 1, 'Education': 'Graduate', 'Loan_Amount_Term': 213},
+    {'ApplicantIncome': 5000, 'CoapplicantIncome': 2000, 'LoanAmount': 150, 'Credit_History': 1, 'Education': 'Graduate', 'Loan_Amount_Term': 360},
+    {'ApplicantIncome': 3000, 'CoapplicantIncome': 0, 'LoanAmount': 100, 'Credit_History': 0, 'Education': 'Not Graduate', 'Loan_Amount_Term': 240}
+]
+
+for i, test_case in enumerate(test_cases):
+    result = create_loan_status(pd.Series(test_case))
+    total_income = test_case['ApplicantIncome'] + test_case['CoapplicantIncome']
+    ratio = total_income / test_case['LoanAmount']
+    print(f"Test {i+1}: Income={total_income}, Loan={test_case['LoanAmount']}, Ratio={ratio:.1f}, Credit={test_case['Credit_History']}, Education={test_case['Education']} -> {result}")

@@ -22,10 +22,6 @@ import {
   CardContent,
   Chip
 } from '@mui/material';
-import {
-  CheckCircle,
-  Cancel
-} from '@mui/icons-material';
 
 const steps = ['Personal Information', 'Financial Details', 'Loan Information'];
 
@@ -47,7 +43,7 @@ const LoanForm = () => {
     propertyArea: ''
   });
 
-  const [result, setResult] = useState(null);
+  const [predictionResult, setPredictionResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeStep, setActiveStep] = useState(0);
@@ -57,7 +53,7 @@ const LoanForm = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
-    setError(''); // Clear error when user makes changes
+    setError('');
   };
 
   const handleNext = () => {
@@ -72,12 +68,15 @@ const LoanForm = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setResult(null);
+    setPredictionResult(null);
 
     try {
+      console.log('Sending data to backend:', formData);
       const response = await axios.post('http://localhost:8000/api/predict', formData);
-      // Expecting response.data to be { result: true } or { result: false }
-      setResult(response.data);
+      console.log('Backend response:', response.data);
+      
+      // Spring Boot returns a boolean directly
+      setPredictionResult(response.data);
     } catch (error) {
       console.error('Error:', error);
       setError('Failed to get prediction. Please try again.');
@@ -248,8 +247,47 @@ const LoanForm = () => {
           </Grid>
         );
       default:
-        return 'Unknown step';
+        return <Typography>Unknown step</Typography>;
     }
+  };
+
+  const renderPredictionResult = () => {
+    if (predictionResult === null) return null;
+
+    const isApproved = predictionResult === true;
+    
+    return (
+      <Card sx={{ mt: 3, border: '2px solid', borderColor: isApproved ? 'success.main' : 'error.main' }}>
+        <CardContent sx={{ textAlign: 'center', py: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mr: 2,
+                bgcolor: isApproved ? 'success.main' : 'error.main',
+                color: 'white'
+              }}
+            >
+              {isApproved ? '✓' : '✗'}
+            </Box>
+            <Typography variant="h5" component="div">
+              {isApproved ? 'Loan Approved!' : 'Loan Not Approved'}
+            </Typography>
+          </Box>
+          <Chip 
+            label={isApproved ? 'Eligible for Loan' : 'Not Eligible for Loan'} 
+            color={isApproved ? 'success' : 'error'}
+            variant="outlined"
+            size="large"
+          />
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -310,28 +348,7 @@ const LoanForm = () => {
               </Alert>
             )}
 
-            {result !== null && typeof result === 'object' && (
-              <Card sx={{ mt: 3, border: '2px solid', borderColor: result.result ? 'success.main' : 'error.main' }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
-                    {result.result ? (
-                      <CheckCircle sx={{ fontSize: 48, color: 'success.main', mr: 2 }} />
-                    ) : (
-                      <Cancel sx={{ fontSize: 48, color: 'error.main', mr: 2 }} />
-                    )}
-                    <Typography variant="h5" component="div">
-                      {result.result ? 'Loan Approved!' : 'Loan Not Approved'}
-                    </Typography>
-                  </Box>
-                  <Chip 
-                    label={result.result ? 'Eligible for Loan' : 'Not Eligible for Loan'} 
-                    color={result.result ? 'success' : 'error'}
-                    variant="outlined"
-                    size="large"
-                  />
-                </CardContent>
-              </Card>
-            )}
+            {renderPredictionResult()}
 
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
               <Button
